@@ -1,4 +1,4 @@
-module grpc
+module github.com/xvbnm48/go-grpc-learning
 
 go 1.17
 
