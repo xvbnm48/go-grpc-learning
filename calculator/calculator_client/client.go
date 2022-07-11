@@ -10,6 +10,8 @@ import (
 	"github.com/xvbnm48/go-grpc-learning/calculator/calculatorpb"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func main() {
@@ -25,7 +27,8 @@ func main() {
 	// doUnary(c)
 	// doServerStreaming(c)
 	// doClientStreaming(c)
-	doBiDiStreaming(c)
+	// doBiDiStreaming(c)
+	doErrorUnary(c)
 }
 
 func doUnary(c calculatorpb.CalculatorServiceClient) {
@@ -126,4 +129,33 @@ func doBiDiStreaming(c calculatorpb.CalculatorServiceClient) {
 	}()
 
 	<-waitc
+}
+
+func doErrorUnary(c calculatorpb.CalculatorServiceClient) {
+	fmt.Println("Starting to do a Unary RPC with error...")
+	// correct call
+	doErrorCall(c, 10)
+	// error call
+	doErrorCall(c, -2)
+}
+
+func doErrorCall(c calculatorpb.CalculatorServiceClient, n int32) {
+	res, err := c.SquareRoot(context.Background(), &calculatorpb.SquareRootRequest{
+		Number: n,
+	})
+	if err != nil {
+		respErr, ok := status.FromError(err)
+		if ok {
+			// actual error from gRPC (user error)
+			fmt.Println(respErr.Message())
+			fmt.Println(respErr.Code())
+			if respErr.Code() == codes.InvalidArgument {
+				fmt.Println("We probably sent a negative number!")
+			}
+		} else {
+			// actual error from framework (system error)
+			log.Fatalf("error while calling SquareRoot RPC: %v", err)
+		}
+	}
+	fmt.Printf("Result of square root of %v : %v\n", n, res.GetNumberRoot())
 }
