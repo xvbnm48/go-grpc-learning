@@ -11,12 +11,13 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
 func main() {
 	fmt.Println("Hello, this is calculator client")
-	cc, err := grpc.Dial("localhost:8081", grpc.WithInsecure())
+	cc, err := grpc.Dial("localhost:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("could not connect to server: %v", err)
 	}
