@@ -12,6 +12,8 @@ import (
 	"github.com/xvbnm48/go-grpc-learning/greet/greetpb"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type server struct{}
@@ -85,6 +87,24 @@ func (*server) GreetEveryone(stream greetpb.GreetService_GreetEveryoneServer) er
 			return err
 		}
 	}
+}
+
+func (*server) GreetWithDeadline(ctx context.Context, req *greetpb.GreetWithDeadlineRequest) (*greetpb.GreetWithDeadlineResponse, error) {
+	fmt.Printf("GreetWithDeadline function was invoked with %v", req)
+	for i := 0; i < 3; i++ {
+		if ctx.Err() == context.DeadlineExceeded {
+			fmt.Println("Deadline was exceeded")
+			return nil, status.Errorf(codes.Canceled, "Deadline was exceeded")
+		}
+		time.Sleep(1 * time.Second)
+	}
+	firtsname := req.GetGreeting().GetFirstName()
+	result := "Hello " + firtsname
+	response := &greetpb.GreetWithDeadlineResponse{
+		Result: result,
+	}
+
+	return response, nil
 }
 
 func main() {
