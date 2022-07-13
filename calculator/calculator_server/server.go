@@ -11,6 +11,7 @@ import (
 	"github.com/xvbnm48/go-grpc-learning/calculator/calculatorpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 )
 
@@ -111,12 +112,14 @@ func (*server) SquareRoot(ctx context.Context, req *calculatorpb.SquareRootReque
 
 func main() {
 	fmt.Println("calculator server")
-	lis, err := net.Listen("tcp", ":8081")
+	lis, err := net.Listen("tcp", "localhost:8081")
 	if err != nil {
 		log.Fatalf("failed to listen: %v ", err)
 	}
 	s := grpc.NewServer()
 	calculatorpb.RegisterCalculatorServiceServer(s, &server{})
+
+	reflection.Register(s)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
