@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/xvbnm48/go-grpc-learning/blog/blogpb"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	// "gopkg.in/mgo.v2/bson"
 )
 
 var collection *mongo.Collection
@@ -29,6 +31,7 @@ type blogItem struct {
 }
 
 func (*server) CreateBlog(ctx context.Context, req *blogpb.CreateBlogRequest) (*blogpb.CreateBlogResponse, error) {
+	fmt.Println("Create blog request")
 	blog := req.GetBlog()
 	data := blogItem{
 		AuthorID: blog.GetAuthorId(),
@@ -58,6 +61,84 @@ func (*server) CreateBlog(ctx context.Context, req *blogpb.CreateBlogRequest) (*
 			Content:  blog.GetContent(),
 		},
 	}, nil
+}
+
+func (*server) ReadBlog(ctx context.Context, req *blogpb.ReadBlogRequest) (*blogpb.ReadBlogResponse, error) {
+	fmt.Println("Read blog request")
+	// get blog id
+	blogId := req.GetBlogId()
+	oid, err := primitive.ObjectIDFromHex(blogId)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			fmt.Sprintf("Cannot parse ID"),
+		)
+	}
+	// create an empty struct
+	data := &blogItem{}
+	res := collection.FindOne(context.Background(), bson.M{"_id": oid}).Decode(data)
+	if res != nil {
+		return nil, status.Errorf(
+			codes.NotFound,
+			fmt.Sprintf("Cannot find blog with specified ID: %v", err),
+		)
+	}
+
+	return &blogpb.ReadBlogResponse{
+		Blog: &blogpb.Blog{
+			Id:       data.ID.Hex(),
+			AuthorId: data.AuthorID,
+			Title:    data.Title,
+			Content:  data.Content,
+		},
+	}, nil
+}
+
+func (*server) UpdateBlog(ctx context.Context, req *blogpb.UpdateBlogRequest) (*blogpb.UpdateBlogResponse, error) {
+	fmt.Println("Update blog request")
+	blog := req.GetBlog()
+	oid, err := primitive.ObjectIDFromHex(blog.GetId())
+	if err != nil {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			fmt.Sprintf("Cannot parse ID"),
+		)
+	}
+
+	data := &blogItem{}
+	res := collection.FindOne(context.Background(), bson.M{"_id": oid}).Decode(data)
+	if res != nil {
+		return nil, status.Errorf(
+			codes.NotFound,
+			fmt.Sprintf("Cannot find blog with specified ID: %v", err),
+		)
+	}
+
+	data.AuthorID = blog.GetAuthorId()
+	data.Title = blog.GetTitle()
+	data.Content = blog.GetContent()
+
+	_, updateResErr := collection.ReplaceOne(context.Background(), bson.M{"_id": oid}, data)
+	if updateResErr != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Cannot update object in MongoDB: %v", updateResErr),
+		)
+	}
+
+	return &blogpb.UpdateBlogResponse{
+		Blog: dataToBlogPb(data),
+	}, nil
+
+}
+
+func dataToBlogPb(data *blogItem) *blogpb.Blog {
+	return &blogpb.Blog{
+		Id:       data.ID.Hex(),
+		AuthorId: data.AuthorID,
+		Title:    data.Title,
+		Content:  data.Content,
+	}
 }
 
 func main() {
